@@ -1,9 +1,11 @@
 #include "monitor.h"
+#include <QJsonDocument>
+#include <QJsonObject>
 #include <QDateTime>
 #include <QDebug>
 
-Monitor::Monitor(QObject *parent) : QObject(parent), process(new QProcess(this)), timer(new QTimer(this)), checkInterval(60) {
-    connect(process, QOverload<int, QProcess::ExitStatus>::of(&QProcess::finished), this, &Monitor::onProcessFinished);
+Monitor::Monitor(QObject *parent) : QObject(parent), manager(new QNetworkAccessManager(this)), timer(new QTimer(this)), checkInterval(60), alertThreshold(80) {
+    connect(manager, &QNetworkAccessManager::finished, this, &Monitor::onReplyFinished);
     connect(timer, &QTimer::timeout, this, &Monitor::onTimerTimeout);
 }
 
@@ -13,60 +15,60 @@ void Monitor::setCheckInterval(int seconds) {
     timer->start();
 }
 
+void Monitor::setServerUrl(const QString &url) {
+    serverUrl = QUrl(url);
+}
+
+void Monitor::setAlertThreshold(int threshold) {
+    alertThreshold = threshold;
+}
+
 void Monitor::manualRefresh() {
     collectData();
 }
 
 void Monitor::collectData() {
-    // Ejecutar comandos para recolectar datos
-    // Primero uptime
-    currentCommand = "uptime";
-    process->start("powershell.exe", QStringList() << "-Command" << "$uptime = (Get-Date) - (Get-CimInstance Win32_OperatingSystem).LastBootUpTime; \"$($uptime.Days) days, $($uptime.Hours) hours\"");
+    if (serverUrl.isValid()) {
+        QNetworkRequest request(serverUrl);
+        manager->get(request);
+    } else {
+        emit errorOccurred("URL del servidor no válida");
+    }
 }
 
-void Monitor::onProcessFinished(int exitCode, QProcess::ExitStatus exitStatus) {
-    if (exitStatus == QProcess::NormalExit && exitCode == 0) {
-        QString output = process->readAllStandardOutput().trimmed();
-        QString error = process->readAllStandardError().trimmed();
+void Monitor::onReplyFinished(QNetworkReply *reply) {
+    if (reply->error() == QNetworkReply::NoError) {
+        QByteArray data = reply->readAll();
+        QJsonDocument doc = QJsonDocument::fromJson(data);
+        if (doc.isObject()) {
+            QJsonObject obj = doc.object();
+            QString uptime = obj.value("uptime").toString("N/A");
+            QString load = obj.value("load").toString("N/A");
+            QString memoryUsed = obj.value("memory_used").toString("N/A");
+            QString diskFree = obj.value("disk_free").toString("N/A");
+            QString status = obj.value("status").toString("Desconocido");
 
-        if (!error.isEmpty()) {
-            emit errorOccurred("Command error: " + error);
-            return;
-        }
-
-        static QString uptime, cpuLoad, memoryUsed, diskFree;
-
-        if (currentCommand == "uptime") {
-            uptime = output;
-            // Siguiente: CPU
-            currentCommand = "cpu";
-            process->start("powershell.exe", QStringList() << "-Command" << "Get-CimInstance Win32_Processor | Measure-Object -Property LoadPercentage -Average | Select-Object -ExpandProperty Average");
-        } else if (currentCommand == "cpu") {
-            cpuLoad = output + "%";
-            // Siguiente: Memoria usada
-            currentCommand = "memory";
-            process->start("powershell.exe", QStringList() << "-Command" << "Get-CimInstance Win32_OperatingSystem | ForEach-Object { [math]::Round(($_.TotalVisibleMemorySize - $_.FreePhysicalMemory) / 1MB, 1) }");
-        } else if (currentCommand == "memory") {
-            memoryUsed = output + " GB";
-            // Siguiente: Disco libre
-            currentCommand = "disk";
-            process->start("powershell.exe", QStringList() << "-Command" << "Get-CimInstance Win32_LogicalDisk -Filter \"DeviceID='C:'\" | ForEach-Object { [math]::Round($_.FreeSpace / 1GB, 1) }");
-        } else if (currentCommand == "disk") {
-            diskFree = output + " GB";
-            // Determinar status
-            QString status = "OK";
-            double cpuPercent = cpuLoad.remove('%').toDouble();
-            if (cpuPercent > 95) {
-                status = "Caído";
-            } else if (cpuPercent > 80) {
-                status = "Alerta";
+            // Determinar status basado en load si no viene
+            if (status == "Desconocido" && !load.isEmpty()) {
+                double cpuPercent = load.remove('%').toDouble();
+                if (cpuPercent > 95) {
+                    status = "Caído";
+                } else if (cpuPercent > alertThreshold) {
+                    status = "Alerta";
+                } else {
+                    status = "OK";
+                }
             }
+
             QString lastCheck = QDateTime::currentDateTime().toString("yyyy-MM-dd hh:mm:ss");
-            emit dataReceived(status, uptime, cpuLoad, memoryUsed, diskFree, lastCheck);
+            emit dataReceived(status, uptime, load, memoryUsed, diskFree, lastCheck);
+        } else {
+            emit errorOccurred("Respuesta JSON inválida");
         }
     } else {
-        emit errorOccurred("Process failed: " + process->errorString());
+        emit errorOccurred("Error de red: " + reply->errorString());
     }
+    reply->deleteLater();
 }
 
 void Monitor::onTimerTimeout() {

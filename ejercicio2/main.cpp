@@ -14,7 +14,7 @@ int main(int argc, char** argv) {
     QApplication a(argc, argv);
 
     QWidget *ventana = new QWidget;
-    ventana->setWindowTitle("Local System Monitor Panel");
+    ventana->setWindowTitle("VPS Monitor Panel");
     ventana->resize(600, 400);
 
     // Tema negro-azul
@@ -31,14 +31,30 @@ int main(int argc, char** argv) {
     // Configuración
     QGroupBox *configGroup = new QGroupBox("Configuración");
     QVBoxLayout *configLayout = new QVBoxLayout;
+    QHBoxLayout *urlLayout = new QHBoxLayout;
+    QLabel *urlLabel = new QLabel("URL del Endpoint:");
+    QLineEdit *urlEdit = new QLineEdit("http://tu-vps.com/health");
+    urlLayout->addWidget(urlLabel);
+    urlLayout->addWidget(urlEdit);
+    configLayout->addLayout(urlLayout);
+
     QHBoxLayout *intervalLayout = new QHBoxLayout;
     QLabel *intervalLabel = new QLabel("Intervalo (seg):");
     QSpinBox *intervalSpin = new QSpinBox;
     intervalSpin->setRange(10, 3600);
-    intervalSpin->setValue(5);
+    intervalSpin->setValue(60);
     intervalLayout->addWidget(intervalLabel);
     intervalLayout->addWidget(intervalSpin);
     configLayout->addLayout(intervalLayout);
+
+    QHBoxLayout *thresholdLayout = new QHBoxLayout;
+    QLabel *thresholdLabel = new QLabel("Umbral Alerta CPU (%):");
+    QSpinBox *thresholdSpin = new QSpinBox;
+    thresholdSpin->setRange(50, 100);
+    thresholdSpin->setValue(80);
+    thresholdLayout->addWidget(thresholdLabel);
+    thresholdLayout->addWidget(thresholdSpin);
+    configLayout->addLayout(thresholdLayout);
 
     QPushButton *refreshButton = new QPushButton("Refrescar Manual");
     configLayout->addWidget(refreshButton);
@@ -77,7 +93,9 @@ int main(int argc, char** argv) {
     ventana->setLayout(mainLayout);
 
     // Conexiones
+    QObject::connect(urlEdit, &QLineEdit::textChanged, monitor, &Monitor::setServerUrl);
     QObject::connect(intervalSpin, QOverload<int>::of(&QSpinBox::valueChanged), monitor, &Monitor::setCheckInterval);
+    QObject::connect(thresholdSpin, QOverload<int>::of(&QSpinBox::valueChanged), monitor, &Monitor::setAlertThreshold);
     QObject::connect(refreshButton, &QPushButton::clicked, monitor, &Monitor::manualRefresh);
     QObject::connect(monitor, &Monitor::dataReceived, [statusLabel, uptimeLabel, loadLabel, memoryLabel, diskLabel, lastCheckLabel, historyEdit](const QString &status, const QString &uptime, const QString &load, const QString &memoryUsed, const QString &diskFree, const QString &lastCheck) {
         statusLabel->setText("Estado: " + status);
@@ -93,7 +111,9 @@ int main(int argc, char** argv) {
     });
 
     // Inicializar
+    monitor->setServerUrl(urlEdit->text());
     monitor->setCheckInterval(intervalSpin->value());
+    monitor->setAlertThreshold(thresholdSpin->value());
 
     ventana->show();
     return a.exec();

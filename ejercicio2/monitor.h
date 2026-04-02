@@ -2,8 +2,10 @@
 #define MONITOR_H
 
 #include <QObject>
-#include <QProcess>
+#include <QNetworkAccessManager>
+#include <QNetworkReply>
 #include <QTimer>
+#include <QUrl>
 
 class Monitor : public QObject {
     Q_OBJECT
@@ -11,6 +13,8 @@ class Monitor : public QObject {
 public:
     explicit Monitor(QObject *parent = nullptr);
     void setCheckInterval(int seconds);
+    void setServerUrl(const QString &url);
+    void setAlertThreshold(int threshold);
     void manualRefresh();
 
 signals:
@@ -18,15 +22,16 @@ signals:
     void errorOccurred(const QString &error);
 
 private slots:
-    void onProcessFinished(int exitCode, QProcess::ExitStatus exitStatus);
+    void onReplyFinished(QNetworkReply *reply);
     void onTimerTimeout();
 
 private:
     void collectData();
-    QProcess *process;
+    QNetworkAccessManager *manager;
     QTimer *timer;
     int checkInterval;
-    QString currentCommand;
+    QUrl serverUrl;
+    int alertThreshold;
 };
 
 #endif // MONITOR_H
