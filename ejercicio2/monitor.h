@@ -2,10 +2,9 @@
 #define MONITOR_H
 
 #include <QObject>
-#include <QNetworkAccessManager>
-#include <QNetworkReply>
+#include <QProcess>
 #include <QTimer>
-#include <QUrl>
+#include <QString>
 
 class Monitor : public QObject {
     Q_OBJECT
@@ -13,8 +12,9 @@ class Monitor : public QObject {
 public:
     explicit Monitor(QObject *parent = nullptr);
     void setCheckInterval(int seconds);
-    void setServerUrl(const QString &url);
+    void setServerUrl(const QString &url); // Now it's IP or hostname
     void setAlertThreshold(int threshold);
+    void setSshCredentials(const QString &user, const QString &password);
     void manualRefresh();
 
 signals:
@@ -22,16 +22,18 @@ signals:
     void errorOccurred(const QString &error);
 
 private slots:
-    void onReplyFinished(QNetworkReply *reply);
+    void onProcessFinished(int exitCode, QProcess::ExitStatus exitStatus);
     void onTimerTimeout();
 
 private:
     void collectData();
-    QNetworkAccessManager *manager;
+    QProcess *process;
     QTimer *timer;
     int checkInterval;
-    QUrl serverUrl;
+    QString serverHost;
     int alertThreshold;
+    QString sshUser;
+    QString sshPassword;
 };
 
 #endif // MONITOR_H

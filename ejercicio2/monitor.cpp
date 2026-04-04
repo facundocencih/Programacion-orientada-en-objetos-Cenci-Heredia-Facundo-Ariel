@@ -4,8 +4,8 @@
 #include <QDateTime>
 #include <QDebug>
 
-Monitor::Monitor(QObject *parent) : QObject(parent), manager(new QNetworkAccessManager(this)), timer(new QTimer(this)), checkInterval(60), alertThreshold(80) {
-    connect(manager, &QNetworkAccessManager::finished, this, &Monitor::onReplyFinished);
+Monitor::Monitor(QObject *parent) : QObject(parent), process(new QProcess(this)), timer(new QTimer(this)), checkInterval(60), alertThreshold(80) {
+    connect(process, QOverload<int, QProcess::ExitStatus>::of(&QProcess::finished), this, &Monitor::onProcessFinished);
     connect(timer, &QTimer::timeout, this, &Monitor::onTimerTimeout);
 }
 
@@ -16,11 +16,16 @@ void Monitor::setCheckInterval(int seconds) {
 }
 
 void Monitor::setServerUrl(const QString &url) {
-    serverUrl = QUrl(url);
+    serverHost = url;
 }
 
 void Monitor::setAlertThreshold(int threshold) {
     alertThreshold = threshold;
+}
+
+void Monitor::setSshCredentials(const QString &user, const QString &password) {
+    sshUser = user;
+    sshPassword = password;
 }
 
 void Monitor::manualRefresh() {
@@ -28,47 +33,44 @@ void Monitor::manualRefresh() {
 }
 
 void Monitor::collectData() {
-    if (serverUrl.isValid()) {
-        QNetworkRequest request(serverUrl);
-        manager->get(request);
-    } else {
-        emit errorOccurred("URL del servidor no válida");
+    if (serverHost.isEmpty() || sshUser.isEmpty()) {
+        emit errorOccurred("Host o credenciales SSH no configuradas");
+        return;
     }
+    // Run ssh command to get all data at once
+    QString command = QString("sshpass -p '%1' ssh -o StrictHostKeyChecking=no %2@%3 \"uptime -p && uptime | awk -F'load average:' '{ print \$2 }' | cut -d, -f1 && free -h | grep Mem | awk '{print \$3}' && df -h / | tail -1 | awk '{print \$4}'\"").arg(sshPassword, sshUser, serverHost);
+    process->start(command);
 }
 
-void Monitor::onReplyFinished(QNetworkReply *reply) {
-    if (reply->error() == QNetworkReply::NoError) {
-        QByteArray data = reply->readAll();
-        QJsonDocument doc = QJsonDocument::fromJson(data);
-        if (doc.isObject()) {
-            QJsonObject obj = doc.object();
-            QString uptime = obj.value("uptime").toString("N/A");
-            QString load = obj.value("load").toString("N/A");
-            QString memoryUsed = obj.value("memory_used").toString("N/A");
-            QString diskFree = obj.value("disk_free").toString("N/A");
-            QString status = obj.value("status").toString("Desconocido");
+void Monitor::onProcessFinished(int exitCode, QProcess::ExitStatus exitStatus) {
+    if (exitStatus == QProcess::NormalExit && exitCode == 0) {
+        QByteArray output = process->readAllStandardOutput();
+        QString data = QString::fromUtf8(output).trimmed();
+        QStringList lines = data.split('\n');
+        if (lines.size() >= 4) {
+            QString uptime = lines[0];
+            QString load = lines[1] + '%';
+            QString memoryUsed = lines[2];
+            QString diskFree = lines[3];
+            QString status = "OK";
 
-            // Determinar status basado en load si no viene
-            if (status == "Desconocido" && !load.isEmpty()) {
-                double cpuPercent = load.remove('%').toDouble();
-                if (cpuPercent > 95) {
-                    status = "Caído";
-                } else if (cpuPercent > alertThreshold) {
-                    status = "Alerta";
-                } else {
-                    status = "OK";
-                }
+            // Determine status based on load
+            double cpuPercent = load.remove('%').toDouble();
+            if (cpuPercent > 95) {
+                status = "Caído";
+            } else if (cpuPercent > alertThreshold) {
+                status = "Alerta";
             }
 
             QString lastCheck = QDateTime::currentDateTime().toString("yyyy-MM-dd hh:mm:ss");
             emit dataReceived(status, uptime, load, memoryUsed, diskFree, lastCheck);
         } else {
-            emit errorOccurred("Respuesta JSON inválida");
+            emit errorOccurred("Salida SSH inválida");
         }
     } else {
-        emit errorOccurred("Error de red: " + reply->errorString());
+        QByteArray error = process->readAllStandardError();
+        emit errorOccurred("Error SSH: " + QString::fromUtf8(error));
     }
-    reply->deleteLater();
 }
 
 void Monitor::onTimerTimeout() {

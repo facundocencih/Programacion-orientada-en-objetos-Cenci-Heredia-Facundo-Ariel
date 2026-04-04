@@ -31,12 +31,28 @@ int main(int argc, char** argv) {
     // Configuración
     QGroupBox *configGroup = new QGroupBox("Configuración");
     QVBoxLayout *configLayout = new QVBoxLayout;
-    QHBoxLayout *urlLayout = new QHBoxLayout;
-    QLabel *urlLabel = new QLabel("URL del Endpoint:");
-    QLineEdit *urlEdit = new QLineEdit("http://tu-vps.com/health");
-    urlLayout->addWidget(urlLabel);
-    urlLayout->addWidget(urlEdit);
-    configLayout->addLayout(urlLayout);
+    QHBoxLayout *hostLayout = new QHBoxLayout;
+    QLabel *hostLabel = new QLabel("IP/Host del VPS:");
+    QLineEdit *hostEdit = new QLineEdit("173.212.209.61");
+    hostLayout->addWidget(hostLabel);
+    hostLayout->addWidget(hostEdit);
+    configLayout->addLayout(hostLayout);
+
+    QHBoxLayout *userLayout = new QHBoxLayout;
+    QLabel *userLabel = new QLabel("Usuario SSH:");
+    QLineEdit *userEdit = new QLineEdit("facundo");
+    userLayout->addWidget(userLabel);
+    userLayout->addWidget(userEdit);
+    configLayout->addLayout(userLayout);
+
+    QHBoxLayout *passLayout = new QHBoxLayout;
+    QLabel *passLabel = new QLabel("Contraseña SSH:");
+    QLineEdit *passEdit = new QLineEdit;
+    passEdit->setPlaceholderText("Introduce contraseña");
+    passEdit->setEchoMode(QLineEdit::Password);
+    passLayout->addWidget(passLabel);
+    passLayout->addWidget(passEdit);
+    configLayout->addLayout(passLayout);
 
     QHBoxLayout *intervalLayout = new QHBoxLayout;
     QLabel *intervalLabel = new QLabel("Intervalo (seg):");
@@ -93,7 +109,13 @@ int main(int argc, char** argv) {
     ventana->setLayout(mainLayout);
 
     // Conexiones
-    QObject::connect(urlEdit, &QLineEdit::textChanged, monitor, &Monitor::setServerUrl);
+    QObject::connect(hostEdit, &QLineEdit::textChanged, monitor, &Monitor::setServerUrl);
+    QObject::connect(userEdit, &QLineEdit::textChanged, [monitor, passEdit](const QString &user) {
+        monitor->setSshCredentials(user, passEdit->text());
+    });
+    QObject::connect(passEdit, &QLineEdit::textChanged, [monitor, userEdit](const QString &pass) {
+        monitor->setSshCredentials(userEdit->text(), pass);
+    });
     QObject::connect(intervalSpin, QOverload<int>::of(&QSpinBox::valueChanged), monitor, &Monitor::setCheckInterval);
     QObject::connect(thresholdSpin, QOverload<int>::of(&QSpinBox::valueChanged), monitor, &Monitor::setAlertThreshold);
     QObject::connect(refreshButton, &QPushButton::clicked, monitor, &Monitor::manualRefresh);
@@ -111,7 +133,8 @@ int main(int argc, char** argv) {
     });
 
     // Inicializar
-    monitor->setServerUrl(urlEdit->text());
+    monitor->setServerUrl(hostEdit->text());
+    monitor->setSshCredentials(userEdit->text(), passEdit->text());
     monitor->setCheckInterval(intervalSpin->value());
     monitor->setAlertThreshold(thresholdSpin->value());
 
