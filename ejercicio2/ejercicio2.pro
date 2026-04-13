@@ -1,8 +1,17 @@
 QT += core gui widgets network
 
+CONFIG += c++17
+
+TEMPLATE = app
+TARGET = Ejercicio2
+
 SOURCES += \
+    animatedprogressbar.cpp \
     main.cpp \
-    monitor.cpp
+    mainwindow.cpp \
+    monitorservice.cpp
 
 HEADERS += \
-    monitor.h
+    animatedprogressbar.h \
+    mainwindow.h \
+    monitorservice.h
