@@ -1,3 +1,5 @@
+build/
+.qtcreator/
 ejercicio3/build/
 ejercicio3/.qtcreator/
 ejercicio3/*.pro.user
