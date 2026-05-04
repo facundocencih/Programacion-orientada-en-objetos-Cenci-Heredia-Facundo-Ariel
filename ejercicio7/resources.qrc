@@ -1,0 +1,6 @@
+<RCC>
+    <qresource prefix="/">
+        <file>assets/avatar.svg</file>
+    </qresource>
+</RCC>
+

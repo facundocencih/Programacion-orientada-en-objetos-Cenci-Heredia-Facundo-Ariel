@@ -1,0 +1,1 @@
+Este es un proyecto que se realizo a mano en relacion a que debiamos de grabar un tutorial de como haciamos un login con qt designer este fue hecho por el estudiante Facundo Ariel Cenci Heredia de la Universidad Blas Pascal el enlace al video es:https://youtu.be/N0ZsjiKdA-w

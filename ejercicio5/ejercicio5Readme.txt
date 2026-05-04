@@ -1,0 +1,1 @@
+Este ejercicio fue hecho con el proposito de demostrar como codificabamos sin qt designer un login hecho por el Estudiante de la Universidad Blas Pascal Facundo Ariel Cenci Heredia el enlace al tutorial es:https://youtu.be/96nJ6QSZ3bs
