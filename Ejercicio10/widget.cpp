@@ -1,14 +1,15 @@
 #include "widget.h"
 #include "ui_widget.h"
 
+#include <QDateTime>
 #include <QKeyEvent>
 #include <QPainter>
-#include <QRandomGenerator>
 
 Widget::Widget(QWidget *parent)
     : QWidget(parent)
     , ui(new Ui::Widget),
       trex(new TRex(this)),
+      generador(1),
       sueloY(430),
       velocidadBase(7),
       distancia(0),
@@ -151,10 +152,10 @@ void Widget::crearPajaro()
         return;
     }
 
-    const int tipo = QRandomGenerator::global()->bounded(3);
+    const int tipo = generador.bounded(3);
     Pajaro *pajaro = new Pajaro(velocidadActual(), tipo, this);
-    const int altura = QRandomGenerator::global()->bounded(sueloY - 112, sueloY - 84);
-    int x = width() + 170;
+    const int altura = generador.bounded(sueloY - 112, sueloY - 84);
+    int x = width() + 220;
     x = qMax(x, ultimaPosicionCactus() + distanciaAntesDePajaro());
     x = qMax(x, ultimaPosicionPajaro() + distanciaEntrePajaros());
     pajaro->move(x, altura);
@@ -178,12 +179,13 @@ void Widget::crearObstaculoSorpresa()
 
 void Widget::iniciarJuego()
 {
+    sembrarPartida();
     juegoTerminado = false;
     distancia = 0;
     puntaje = 0;
     velocidadBase = 7;
     nubeX = width() + 80;
-    nubeY = QRandomGenerator::global()->bounded(58, 105);
+    nubeY = generador.bounded(58, 105);
     avanzando = false;
     frenando = false;
     cactus.clear();
@@ -276,7 +278,7 @@ QImage Widget::crearImagenGameOver() const
 
 void Widget::crearCactus()
 {
-    const int tipo = QRandomGenerator::global()->bounded(spritesCactus.size());
+    const int tipo = generador.bounded(spritesCactus.size());
     const QSize tamano(tipo == 1 ? 70 : 58, tipo == 1 ? 96 : 84);
     Cactus nuevo;
     nuevo.sprite = spritesCactus.at(tipo);
@@ -301,7 +303,7 @@ void Widget::actualizarCactus()
 
     const int ventanaAdelantada = 260 + nivelDificultad() * 26;
     if (cactus.isEmpty() || cactus.last().rect.x() < width() + ventanaAdelantada) {
-        proximoCactusX = qMax(width() + QRandomGenerator::global()->bounded(80, 170),
+        proximoCactusX = qMax(width() + generador.bounded(80, 170),
                               ultimaPosicionCactus() + distanciaCactus());
         crearCactus();
     }
@@ -319,8 +321,8 @@ void Widget::actualizarNube()
 {
     nubeX -= 1;
     if (nubeX + 125 < 0) {
-        nubeX = width() + QRandomGenerator::global()->bounded(80, 220);
-        nubeY = QRandomGenerator::global()->bounded(58, 105);
+        nubeX = width() + generador.bounded(80, 220);
+        nubeY = generador.bounded(58, 105);
     }
 }
 
@@ -372,6 +374,13 @@ void Widget::dibujarFondo(QPainter &painter)
     painter.drawRect(QRect(nubeX + 58, nubeY, 44, 20));
 }
 
+void Widget::sembrarPartida()
+{
+    const qint64 ahora = QDateTime::currentDateTime().toMSecsSinceEpoch();
+    const quint32 semilla = static_cast<quint32>(ahora) ^ static_cast<quint32>(ahora >> 32);
+    generador.seed(semilla);
+}
+
 int Widget::ultimaPosicionCactus() const
 {
     int ultima = width() + 80;
@@ -395,12 +404,12 @@ int Widget::distanciaCactus() const
     const int nivel = nivelDificultad();
     const int minima = qMax(340, 340 + velocidadActual() * 8 - nivel * 10);
     const int maxima = qMax(minima + 70, 520 + velocidadActual() * 10 - nivel * 14);
-    return QRandomGenerator::global()->bounded(minima, maxima + 1);
+    return generador.bounded(minima, maxima + 1);
 }
 
 int Widget::distanciaAntesDePajaro() const
 {
-    return qMax(500, 650 + velocidadActual() * 4 - nivelDificultad() * 18);
+    return qMax(560, 720 + velocidadActual() * 4 - nivelDificultad() * 16);
 }
 
 int Widget::distanciaEntrePajaros() const

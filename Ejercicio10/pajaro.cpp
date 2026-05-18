@@ -15,7 +15,7 @@ Pajaro::Pajaro(int velocidadInicial, int tipoInicial, QWidget *parent)
     timerAnimacion.setTimerType(Qt::CoarseTimer);
     connect(&timerMovimiento, SIGNAL(timeout()), this, SLOT(avanzar()));
     connect(&timerAnimacion, SIGNAL(timeout()), this, SLOT(animarAlas()));
-    timerMovimiento.start(33);
+    timerMovimiento.start(25);
     timerAnimacion.start(125);
 }
 
@@ -77,23 +77,23 @@ QPixmap Pajaro::crearSprite(int frame) const
     const int extra = tipo == 2 ? 8 : 0;
 
     p.setBrush(alaColor);
-    p.drawPolygon(QPolygon() << QPoint(30, 21) << QPoint(10, 13 + ala) << QPoint(25, 28));
-    p.drawPolygon(QPolygon() << QPoint(35, 22) << QPoint(55 + extra, 14 - ala) << QPoint(43, 30));
+    p.drawPolygon(QPolygon() << QPoint(42 + extra, 21) << QPoint(62 + extra, 13 + ala) << QPoint(47 + extra, 28));
+    p.drawPolygon(QPolygon() << QPoint(37 + extra, 22) << QPoint(17, 14 - ala) << QPoint(29 + extra, 30));
 
     p.setBrush(cuerpo);
     p.drawRect(QRect(18, 18, 38 + extra, 16));
-    p.drawRect(QRect(47 + extra, 13, 16, 16));
+    p.drawRect(QRect(9, 13, 16, 16));
 
     p.setBrush(QColor(246, 184, 75));
-    p.drawPolygon(QPolygon() << QPoint(61 + extra, 20) << QPoint(70 + extra, 24) << QPoint(61 + extra, 28));
+    p.drawPolygon(QPolygon() << QPoint(9, 20) << QPoint(0, 24) << QPoint(9, 28));
 
     p.setBrush(Qt::white);
-    p.drawRect(QRect(54 + extra, 16, 5, 5));
+    p.drawRect(QRect(13, 16, 5, 5));
     p.setBrush(Qt::black);
-    p.drawRect(QRect(56 + extra, 18, 2, 2));
+    p.drawRect(QRect(13, 18, 2, 2));
 
     p.setBrush(cuerpo.darker(130));
-    p.drawPolygon(QPolygon() << QPoint(20, 25) << QPoint(5, 18) << QPoint(12, 31));
+    p.drawPolygon(QPolygon() << QPoint(56 + extra, 25) << QPoint(71 + extra, 18) << QPoint(64 + extra, 31));
 
     return pixmap;
 }

@@ -6,6 +6,7 @@
 
 #include <QElapsedTimer>
 #include <QImage>
+#include <QRandomGenerator>
 #include <QTimer>
 #include <QWidget>
 
@@ -52,6 +53,7 @@ private:
     void detectarColisiones();
     void limpiarPajaros();
     void dibujarFondo(QPainter &painter);
+    void sembrarPartida();
     int ultimaPosicionCactus() const;
     int ultimaPosicionPajaro() const;
     int distanciaCactus() const;
@@ -67,6 +69,7 @@ private:
     QTimer timerPrincipal;
     QTimer timerPajaros;
     QElapsedTimer reloj;
+    mutable QRandomGenerator generador;
     QVector<Cactus> cactus;
     QVector<Pajaro *> pajaros;
     QVector<QImage> spritesCactus;
